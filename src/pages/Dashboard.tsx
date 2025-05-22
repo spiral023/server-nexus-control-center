@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   CardHeader,
@@ -90,7 +91,7 @@ import { useForm } from "react-hook-form"
 import { Server } from "@/types/server"
 import { generateMockServers } from "@/lib/mockData"
 import { exportToCSV, exportToExcel } from "@/lib/utils"
-import { SparklineChart } from "@/components/SparklineChart"
+import SparklineChart from "@/components/SparklineChart"
 import ServerStats from "@/components/ServerStats"
 import ServerForm from "@/components/ServerForm"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -104,14 +105,14 @@ const formSchema = z.object({
 
 const Dashboard = () => {
   const [servers, setServers] = useState<Server[]>([]);
-  const [rowSelection, setRowSelection] = React.useState({});
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [visibility, setVisibility] = React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [visibility, setVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [serversPerPage] = useState(10);
-  const [date, setDate] = React.useState<DateRange | undefined>({
+  const [date, setDate] = useState<DateRange | undefined>({
     from: new Date(2023, 0, 20),
     to: addDays(new Date(2023, 0, 20), 20),
   })
@@ -122,33 +123,6 @@ const Dashboard = () => {
     const mockServers = generateMockServers(25);
     setServers(mockServers);
   }, []);
-
-  const initialValues = {
-    serverName: '',
-    operatingSystem: '',
-    hardwareType: 'VMware',
-    company: '',
-    serverType: 'Development',
-    location: '',
-    systemAdmin: '',
-    backupAdmin: '',
-    hardwareAdmin: '',
-    description: '',
-    domain: '',
-    maintenanceWindow: '',
-    ipAddress: '',
-    applicationZone: '',
-    operationalZone: '',
-    backup: 'Nein',
-    application: ''
-  };
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      serverName: "",
-    },
-  })
 
   // Get current servers
   const indexOfLastServer = currentPage * serversPerPage;
@@ -216,7 +190,7 @@ const Dashboard = () => {
         const hardwareType = row.getValue("hardwareType")
         return (
           <div className="flex items-center">
-            {hardwareType}
+            {String(hardwareType)}
           </div>
         )
       },
@@ -233,8 +207,8 @@ const Dashboard = () => {
         return (
           <div className="flex items-center">
             <Badge className={cn(
-              "mr-2 rounded-md px-2 py-0.5  uppercase",
-            )}>{serverType}</Badge>
+              "mr-2 rounded-md px-2 py-0.5 uppercase",
+            )}>{String(serverType)}</Badge>
           </div>
         )
       },
@@ -290,7 +264,7 @@ const Dashboard = () => {
         const tags = row.getValue("tags") as string[];
         return (
           <div className="flex flex-wrap gap-1">
-            {tags.map((tag, index) => (
+            {tags && tags.map((tag, index) => (
               <Badge key={index} variant="secondary">{tag}</Badge>
             ))}
           </div>
@@ -410,17 +384,25 @@ const Dashboard = () => {
       sorting,
       columnVisibility: visibility,
     },
-    globalFilter: globalFilter,
-    onGlobalFilterChange: setGlobalFilter,
   })
+
+  // Handle global filtering separately
+  const filteredServers = globalFilter 
+    ? servers.filter(server => 
+        server.serverName.toLowerCase().includes(globalFilter.toLowerCase())
+      )
+    : servers;
 
   const exportData = () => {
     const visibleColumns = columns
-      .filter(column => table.getColumnVisibility()[column.accessorKey as string] !== false)
-      .map(column => column.accessorKey as keyof Server)
-      .filter(Boolean); // remove undefined values
+      .filter(column => {
+        const accessKey = column.id || (column.accessorKey as string);
+        return accessKey && visibility[accessKey] !== false;
+      })
+      .map(column => (column.accessorKey as string))
+      .filter(Boolean);
 
-    exportToCSV(servers, visibleColumns);
+    exportToCSV(servers, visibleColumns as keyof Server[]);
     toast({
       title: "Exporting data...",
       description: "Your CSV file will be downloaded shortly.",
@@ -429,37 +411,22 @@ const Dashboard = () => {
 
   const exportExcelData = () => {
     const visibleColumns = columns
-      .filter(column => table.getColumnVisibility()[column.accessorKey as string] !== false)
-      .map(column => column.accessorKey as keyof Server)
-      .filter(Boolean); // remove undefined values
+      .filter(column => {
+        const accessKey = column.id || (column.accessorKey as string);
+        return accessKey && visibility[accessKey] !== false;
+      })
+      .map(column => (column.accessorKey as string))
+      .filter(Boolean);
 
-    exportToExcel(servers, visibleColumns);
+    exportToExcel(servers, visibleColumns as keyof Server[]);
     toast({
       title: "Exporting data...",
       description: "Your Excel file will be downloaded shortly.",
     })
   }
 
-  const CustomizedAxisTick = ({ x, y, payload }: any) => {
-    return (
-      <g transform={`translate(${x},${y})`}>
-        <text
-          x={0}
-          y={0}
-          dy={16}
-          textAnchor="end"
-          fill="#666"
-          transform="rotate(-35)"
-        >
-          {payload?.value}
-        </text>
-      </g>
-    );
-  };
-
-  // Define handlers for ServerForm
+  // Handle ServerForm submission
   const handleFormSubmit = (values: Server) => {
-    // Add the server to the list
     setServers([...servers, values]);
     onClose();
   };
@@ -502,7 +469,7 @@ const Dashboard = () => {
                 <CardContent>
                   <Input
                     placeholder="Filter servers..."
-                    value={globalFilter ?? ""}
+                    value={globalFilter}
                     onChange={(e) => setGlobalFilter(e.target.value)}
                   />
                 </CardContent>
@@ -610,22 +577,43 @@ const Dashboard = () => {
                   ))}
                 </TableHeader>
                 <TableBody>
-                  {currentServers.map((server) => {
-                    const isSelected = table
-                      .getState()
-                      .rowSelection[server.id] === "true";
-                    return (
-                      <TableRow key={server.id} data-state={isSelected ? "selected" : "not-selected"}>
-                        {columns.map((column) => {
+                  {currentServers.map((server) => (
+                    <TableRow key={server.id}>
+                      {columns.map((column) => {
+                        if (column.id === "select") {
+                          // Handle the checkbox column specially
                           return (
                             <TableCell key={column.id}>
-                              {column.cell ? column.cell({ row: table.getRow(server.id) }) : null}
+                              <Checkbox 
+                                checked={table.getRowModel().rows.find(r => r.id === server.id)?.getIsSelected()}
+                                onCheckedChange={(checked) => {
+                                  const row = table.getRowModel().rows.find(r => r.id === server.id);
+                                  if (row) row.toggleSelected(!!checked);
+                                }}
+                              />
                             </TableCell>
                           );
-                        })}
-                      </TableRow>
-                    );
-                  })}
+                        }
+                        
+                        // For other columns, render based on the column definition
+                        const cellContent = column.cell ? 
+                          column.cell({ 
+                            row: { 
+                              getValue: (key: string) => server[key as keyof Server],
+                              getValue: (key: string) => server[key as keyof Server],
+                              original: server 
+                            } 
+                          }) : 
+                          server[column.accessorKey as keyof Server];
+                          
+                        return (
+                          <TableCell key={column.id || column.accessorKey as string}>
+                            {cellContent}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
@@ -663,6 +651,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-import * as React from "react"
-import { Checkbox } from "@/components/ui/checkbox"
