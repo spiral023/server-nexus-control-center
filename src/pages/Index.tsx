@@ -1,12 +1,16 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import ServerTable from "@/components/ServerTable";
+import ServerPagination from "@/components/ServerPagination";
+import ServerForm from "@/components/ServerForm";
+import { create } from 'zustand';
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="container py-6 space-y-6">
+      <h1 className="text-2xl font-semibold">Server Inventory</h1>
+      <ServerTable />
+      <ServerPagination />
+      <ServerForm />
     </div>
   );
 };
