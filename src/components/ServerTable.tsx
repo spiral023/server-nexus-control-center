@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -153,7 +152,6 @@ const ServerTable = () => {
               <TableHead className="w-[40px] sticky left-0 bg-muted/50 z-10">
                 <Checkbox 
                   checked={allSelected}
-                  indeterminate={!allSelected && someSelected}
                   onCheckedChange={() => selectAllServers()}
                 />
               </TableHead>

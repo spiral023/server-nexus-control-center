@@ -2,7 +2,6 @@
 import ServerTable from "@/components/ServerTable";
 import ServerPagination from "@/components/ServerPagination";
 import ServerForm from "@/components/ServerForm";
-import { create } from 'zustand';
 
 const Index = () => {
   return (

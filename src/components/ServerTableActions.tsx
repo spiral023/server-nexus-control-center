@@ -22,7 +22,7 @@ import { exportToCSV, exportToExcel } from '@/lib/utils';
 import { Server } from '@/types/server';
 import { 
   Search, Filter, Plus, Download, Trash2, Tag, 
-  SortDesc, ChevronDown, Columns, History 
+  SortDesc, ChevronDown, Columns, History, Check, X 
 } from 'lucide-react';
 import SaveViewDialog from './SaveViewDialog';
 import TagDialog from './TagDialog';
