@@ -1,4 +1,5 @@
-import { Server, ServerHistory } from '../types/server';
+
+import { Server, ServerHistory, HardwareType, ServerType, BackupStatus } from '../types/server';
 
 // Sample server types
 const serverTypes = ['Production', 'Test', 'Development', 'Staging', 'QA'];
@@ -145,9 +146,8 @@ function getRandomItem<T>(items: T[]): T {
 }
 
 // Helper function to get a random date between two dates
-function getRandomDate(start: Date, end: Date): string {
-  const date = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-  return date.toISOString();
+function getRandomDate(start: Date, end: Date): Date {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
 
 // Helper function to generate a random IP address
@@ -188,8 +188,8 @@ function generateCpuLoadTrend() {
 // When generating mock servers, add the new fields
 export function generateMockServers(count: number): Server[] {
   return Array.from({ length: count }).map((_, i) => {
-    const serverType = getRandomItem(serverTypes);
-    const hardwareType = getRandomItem(hardwareTypes);
+    const serverType = getRandomItem(serverTypes) as ServerType;
+    const hardwareType = getRandomItem(hardwareTypes) as HardwareType;
     const createdAt = getRandomDate(new Date('2018-01-01'), new Date());
     const updatedAt = getRandomDate(new Date(createdAt), new Date());
     const patchStatus = getWeightedRandomItem(patchStatuses);
@@ -231,10 +231,10 @@ export function generateMockServers(count: number): Server[] {
       ipAddress: generateRandomIP(),
       applicationZone: getRandomItem(appZones),
       operationalZone: getRandomItem(opZones),
-      backup: getRandomItem(['Ja', 'Ja', 'Ja', 'Nein']), // 75% have backup
+      backup: getRandomItem(['Ja', 'Nein']) as BackupStatus, // 75% have backup
       tags: getRandomTags(),
-      createdAt,
-      updatedAt,
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
       updatedBy: getRandomItem(users),
       // New fields
       cores,
@@ -326,7 +326,7 @@ export function generateServerHistory(server: Server, count: number): ServerHist
       field,
       oldValue,
       newValue,
-      timestamp,
+      timestamp: timestamp.toISOString(),
       user: getRandomItem(users)
     });
   }

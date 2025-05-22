@@ -1,13 +1,4 @@
-
-import { useEffect, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import React, { useState, useEffect } from 'react';
 import {
   Form,
   FormControl,
@@ -16,564 +7,621 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import useServerStore from "@/store/serverStore";
-import { Server, HardwareType, ServerType, BackupStatus } from "@/types/server";
-import { toast } from "sonner";
+} from "@/components/ui/select"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import { useForm } from "react-hook-form"
+import { PopoverClose } from "@radix-ui/react-popover";
+import { toast } from "@/components/ui/use-toast"
+import { v4 as uuidv4 } from 'uuid';
+import { Server, BackupStatus } from '../types/server';
 
-const serverSchema = z.object({
-  serverName: z.string().min(3, "Server name must be at least 3 characters"),
-  operatingSystem: z.string().min(1, "Operating system is required"),
-  hardwareType: z.enum(["VMware", "Bare-Metal"]),
-  company: z.string().min(1, "Company is required"),
-  serverType: z.enum(["Production", "Test", "Development", "Staging", "QA"]),
-  location: z.string().min(1, "Location is required"),
-  systemAdmin: z.string().min(1, "System administrator is required"),
-  backupAdmin: z.string().min(1, "Backup administrator is required"),
-  hardwareAdmin: z.string().min(1, "Hardware administrator is required"),
-  description: z.string().min(1, "Description is required"),
-  domain: z.string().min(1, "Domain is required"),
-  maintenanceWindow: z.string().min(1, "Maintenance window is required"),
-  ipAddress: z.string().regex(/^(?:\d{1,3}\.){3}\d{1,3}$/, "Valid IP address required"),
-  applicationZone: z.string().min(1, "Application zone is required"),
-  operationalZone: z.string().min(1, "Operational zone is required"),
-  backup: z.enum(["Yes", "No"]),
-});
+interface ServerFormProps {
+  server?: Server;
+  onSubmit: (values: Server) => void;
+  onCancel: () => void;
+}
 
-const ServerForm = () => {
-  const { 
-    isFormOpen, 
-    closeForm, 
-    selectedServer, 
-    formMode, 
-    addServer, 
-    updateServer 
-  } = useServerStore();
-  
-  const form = useForm<z.infer<typeof serverSchema>>({
-    resolver: zodResolver(serverSchema),
-    defaultValues: {
-      serverName: "",
-      operatingSystem: "",
-      hardwareType: "VMware",
-      company: "",
-      serverType: "Production",
-      location: "",
-      systemAdmin: "",
-      backupAdmin: "",
-      hardwareAdmin: "",
-      description: "",
-      domain: "",
-      maintenanceWindow: "",
-      ipAddress: "",
-      applicationZone: "",
-      operationalZone: "",
-      backup: "Yes",
-    },
-  });
-  
-  // Reset form when mode changes or when selected server changes
+const operatingSystems = [
+  'Windows Server 2022',
+  'Windows Server 2019',
+  'Windows Server 2016',
+  'Ubuntu 22.04 LTS',
+  'Ubuntu 20.04 LTS',
+  'Red Hat Enterprise Linux 9',
+  'Red Hat Enterprise Linux 8',
+  'CentOS 7',
+  'Debian 11',
+  'Debian 10'
+];
+
+const hardwareTypes = ['VMware', 'Bare-Metal'];
+const serverTypes = ['Production', 'Test', 'Development', 'Staging', 'QA'];
+const companies = ['RAITEC', 'RLB', 'RSG', 'PFH', 'Hosting'];
+const locations = ['Linz 1', 'Linz 2', 'Graz', 'Salzburg', 'Innsbruck'];
+const admins = [
+  'Max Mustermann',
+  'Anna Schmidt',
+  'Thomas Huber',
+  'Maria Müller',
+  'Michael Weber',
+  'Laura Schneider',
+  'Stefan Fischer',
+  'Julia Wagner',
+  'Andreas Becker',
+  'Sarah Hoffmann'
+];
+const domains = [
+  'corp.example.com',
+  'dev.example.com',
+  'test.example.com',
+  'prod.example.com',
+  'internal.example.com'
+];
+const maintenanceWindows = [
+  'Sunday 02:00-06:00',
+  'Saturday 22:00-02:00',
+  'Wednesday 23:00-03:00',
+  'Monday 01:00-05:00',
+  'Friday 22:00-02:00',
+  'Unbekannt'
+];
+const appZones = [
+  'DMZ',
+  'Internal',
+  'Secure',
+  'Development',
+  'Testing'
+];
+const opZones = [
+  'Production',
+  'Non-Production',
+  'Development',
+  'Testing',
+  'Staging'
+];
+const applications = [
+  'ERP System', 'CRM Platform', 'Webserver', 'Datenbank', 'Mail Server',
+  'Fileserver', 'Backup System', 'Monitoring', 'Active Directory',
+  'CI/CD Pipeline', 'Kubernetes Cluster', 'Data Warehouse'
+];
+
+const ServerForm: React.FC<ServerFormProps> = ({ server, onSubmit, onCancel }) => {
+  const [isNewServer, setIsNewServer] = useState(!server);
+
   useEffect(() => {
-    if (formMode === 'edit' && selectedServer) {
-      form.reset({
-        serverName: selectedServer.serverName,
-        operatingSystem: selectedServer.operatingSystem,
-        hardwareType: selectedServer.hardwareType,
-        company: selectedServer.company,
-        serverType: selectedServer.serverType,
-        location: selectedServer.location,
-        systemAdmin: selectedServer.systemAdmin,
-        backupAdmin: selectedServer.backupAdmin,
-        hardwareAdmin: selectedServer.hardwareAdmin,
-        description: selectedServer.description,
-        domain: selectedServer.domain,
-        maintenanceWindow: selectedServer.maintenanceWindow,
-        ipAddress: selectedServer.ipAddress,
-        applicationZone: selectedServer.applicationZone,
-        operationalZone: selectedServer.operationalZone,
-        backup: selectedServer.backup,
-      });
-    } else {
-      form.reset({
-        serverName: "",
-        operatingSystem: "",
-        hardwareType: "VMware",
-        company: "",
-        serverType: "Production",
-        location: "",
-        systemAdmin: "",
-        backupAdmin: "",
-        hardwareAdmin: "",
-        description: "",
-        domain: "",
-        maintenanceWindow: "",
-        ipAddress: "",
-        applicationZone: "",
-        operationalZone: "",
-        backup: "Yes",
-      });
-    }
-  }, [formMode, selectedServer, form]);
-  
-  // Sample options for various fields
-  const operatingSystems = [
-    'Windows Server 2019', 'Windows Server 2016', 'Windows Server 2022',
-    'Ubuntu 20.04 LTS', 'Ubuntu 22.04 LTS', 'Debian 11',
-    'Red Hat Enterprise Linux 8', 'Red Hat Enterprise Linux 9',
-    'CentOS 7', 'CentOS 8', 'SUSE Linux Enterprise 15',
-    'macOS Server'
-  ];
-  
-  const locations = [
-    'Frankfurt', 'Berlin', 'Munich', 'Hamburg', 'Cologne',
-    'Vienna', 'Zurich', 'Amsterdam', 'Brussels', 'Paris',
-    'London', 'Dublin', 'Stockholm', 'Oslo', 'Copenhagen'
-  ];
-  
-  const applicationZones = [
-    'Internet', 'Intranet', 'DMZ', 'Secure', 'Public'
-  ];
-  
-  const operationalZones = [
-    'Production', 'Staging', 'Testing', 'Development', 'QA'
-  ];
-  
-  const admins = [
-    'Alice Smith', 'Bob Johnson', 'Carol Williams', 'Dave Brown',
-    'Eve Davis', 'Frank Miller', 'Grace Wilson', 'Henry Moore',
-    'Ivy Taylor', 'Jack Anderson', 'Karen Thomas', 'Leo Harris'
-  ];
-  
-  const maintenanceWindows = [
-    'Sunday 02:00-04:00', 'Saturday 22:00-01:00', 'Wednesday 23:00-01:00',
-    'Monday 01:00-03:00', 'Thursday 22:00-23:00', 'Tuesday 02:00-04:00'
-  ];
-  
-  const domains = [
-    'internal.local', 'corp.local', 'ad.company.com', 'prod.company.com',
-    'test.company.com', 'dev.company.com', 'dmz.company.com'
-  ];
-  
-  const companies = [
-    'Acme Corp', 'Globex', 'Initech', 'Umbrella Corp',
-    'Stark Industries', 'Wayne Enterprises', 'Cyberdyne Systems',
-    'Aperture Science', 'Rekall', 'Weyland-Yutani', 'Tyrell Corp',
-    'Massive Dynamic'
-  ];
-  
-  // Handle form submission
-  const onSubmit = (values: z.infer<typeof serverSchema>) => {
-    if (formMode === 'create') {
+    setIsNewServer(!server);
+  }, [server]);
+
+  const form = useForm<Server>({
+    defaultValues: server || {
+      id: '',
+      serverName: '',
+      operatingSystem: '',
+      hardwareType: 'VMware',
+      company: '',
+      serverType: 'Development',
+      location: '',
+      systemAdmin: '',
+      backupAdmin: '',
+      hardwareAdmin: '',
+      description: '',
+      domain: '',
+      maintenanceWindow: '',
+      ipAddress: '',
+      applicationZone: '',
+      operationalZone: '',
+      backup: 'Nein',
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'system',
+      cores: 0,
+      ramGB: 0,
+      storageGB: 0,
+      vsphereCluster: '',
+      application: '',
+      patchStatus: 'aktuell',
+      lastPatchDate: new Date().toISOString(),
+      cpuLoadTrend: [],
+      alarmCount: 0
+    },
+    mode: "onChange"
+  })
+
+  const onSubmitForm = (values: Server) => {
+    if (isNewServer) {
+      const serverId = uuidv4();
       const newServer: Server = {
-        ...values,
-        id: Math.random().toString(36).substring(2, 11),
+        id: serverId,
         tags: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        updatedBy: 'Current User',
+        updatedBy: 'system',
+        serverName: values.serverName || '',
+        operatingSystem: values.operatingSystem || '',
+        hardwareType: values.hardwareType || 'VMware',
+        company: values.company || '',
+        serverType: values.serverType || 'Development',
+        location: values.location || '',
+        systemAdmin: values.systemAdmin || '',
+        backupAdmin: values.backupAdmin || '',
+        hardwareAdmin: values.hardwareAdmin || '',
+        description: values.description || '',
+        domain: values.domain || '',
+        maintenanceWindow: values.maintenanceWindow || '',
+        ipAddress: values.ipAddress || '',
+        applicationZone: values.applicationZone || '',
+        operationalZone: values.operationalZone || '',
+        backup: values.backup as BackupStatus || 'Nein',
+        cores: Math.floor(Math.random() * 8) + 2,
+        ramGB: (Math.floor(Math.random() * 6) + 2) * 4,
+        storageGB: Math.floor(Math.random() * 500) + 100,
+        vsphereCluster: values.hardwareType === 'VMware' ? 'Cluster-03-DEV' : '',
+        application: values.application || 'Unbekannt',
+        patchStatus: 'aktuell',
+        lastPatchDate: new Date().toISOString(),
+        cpuLoadTrend: Array(24).fill(0).map(() => Math.floor(Math.random() * 30) + 5),
+        alarmCount: 0
       };
-      
-      addServer(newServer);
-      toast.success('Server created successfully');
-    } else if (formMode === 'edit' && selectedServer) {
-      updateServer(selectedServer.id, values);
-      toast.success('Server updated successfully');
+      onSubmit(newServer);
+      toast({
+        title: "Server created.",
+        description: "Your server has been created.",
+      })
+    } else {
+      if (!server) return;
+
+      const updatedFields: Partial<Server> = {
+        serverName: values.serverName,
+        operatingSystem: values.operatingSystem,
+        hardwareType: values.hardwareType,
+        company: values.company,
+        serverType: values.serverType,
+        location: values.location,
+        systemAdmin: values.systemAdmin,
+        backupAdmin: values.backupAdmin,
+        hardwareAdmin: values.hardwareAdmin,
+        description: values.description,
+        domain: values.domain,
+        maintenanceWindow: values.maintenanceWindow,
+        ipAddress: values.ipAddress,
+        applicationZone: values.applicationZone,
+        operationalZone: values.operationalZone,
+        backup: values.backup as BackupStatus,
+        application: values.application
+      };
+
+      const updatedServer: Server = { ...server, ...updatedFields };
+      onSubmit(updatedServer);
+      toast({
+        title: "Server updated.",
+        description: "Your server has been updated.",
+      })
     }
-    
-    closeForm();
-  };
-  
+  }
+
   return (
-    <Dialog open={isFormOpen} onOpenChange={(open) => !open && closeForm()}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {formMode === 'create' ? 'Create New Server' : 'Edit Server'}
-          </DialogTitle>
-          <DialogDescription>
-            {formMode === 'create' 
-              ? 'Add a new server to the inventory.' 
-              : `Update information for server ${selectedServer?.serverName || ''}.`}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="serverName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Server Name*</FormLabel>
-                    <FormControl>
-                      <Input placeholder="SRV-XXX-001" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Unique identifier for the server
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="operatingSystem"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Operating System*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select OS" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {operatingSystems.map(os => (
-                          <SelectItem key={os} value={os}>{os}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="hardwareType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hardware Type*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="VMware">VMware</SelectItem>
-                        <SelectItem value="Bare-Metal">Bare-Metal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="company"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select company" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {companies.map(company => (
-                          <SelectItem key={company} value={company}>{company}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="serverType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Server Type*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Production">Production</SelectItem>
-                        <SelectItem value="Test">Test</SelectItem>
-                        <SelectItem value="Development">Development</SelectItem>
-                        <SelectItem value="Staging">Staging</SelectItem>
-                        <SelectItem value="QA">QA</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select location" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {locations.map(location => (
-                          <SelectItem key={location} value={location}>{location}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="systemAdmin"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>System Administrator*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select admin" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {admins.map(admin => (
-                          <SelectItem key={admin} value={admin}>{admin}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="backupAdmin"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Backup Administrator*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select backup admin" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {admins.map(admin => (
-                          <SelectItem key={admin} value={admin}>{admin}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="hardwareAdmin"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hardware Administrator*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select hardware admin" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {admins.map(admin => (
-                          <SelectItem key={admin} value={admin}>{admin}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="domain"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Domain*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select domain" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {domains.map(domain => (
-                          <SelectItem key={domain} value={domain}>{domain}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="maintenanceWindow"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Maintenance Window*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select maintenance window" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {maintenanceWindows.map(window => (
-                          <SelectItem key={window} value={window}>{window}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="ipAddress"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>IP Address*</FormLabel>
-                    <FormControl>
-                      <Input placeholder="192.168.0.1" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="applicationZone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Application Zone*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select application zone" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {applicationZones.map(zone => (
-                          <SelectItem key={zone} value={zone}>{zone}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="operationalZone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Operational Zone*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select operational zone" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {operationalZones.map(zone => (
-                          <SelectItem key={zone} value={zone}>{zone}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="backup"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Backup Enabled*</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Yes">Yes</SelectItem>
-                        <SelectItem value="No">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description*</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Server description and purpose"
-                      {...field} 
-                      rows={3}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={closeForm}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                {formMode === 'create' ? 'Create Server' : 'Update Server'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmitForm)} className="space-y-8">
+        <FormField
+          control={form.control}
+          name="serverName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Server Name</FormLabel>
+              <FormControl>
+                <Input placeholder="SRV-APP-001" {...field} />
+              </FormControl>
+              <FormDescription>
+                This is the name of the server.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="operatingSystem"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Operating System</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select OS" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {operatingSystems.map((os) => (
+                    <SelectItem key={os} value={os}>{os}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Select the operating system of the server.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="hardwareType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Hardware Type</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Hardware Type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {hardwareTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Choose the hardware type.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="company"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Company</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Company" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company} value={company}>{company}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Select the company that owns the server.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="serverType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Server Type</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Server Type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {serverTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Specify the type of server.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="location"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Location</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Location" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {locations.map((location) => (
+                    <SelectItem key={location} value={location}>{location}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Choose the server location.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="systemAdmin"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>System Admin</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select System Admin" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {admins.map((admin) => (
+                    <SelectItem key={admin} value={admin}>{admin}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Assign a system administrator.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="backupAdmin"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Backup Admin</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Backup Admin" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {admins.map((admin) => (
+                    <SelectItem key={admin} value={admin}>{admin}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Assign a backup administrator.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="hardwareAdmin"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Hardware Admin</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Hardware Admin" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {admins.map((admin) => (
+                    <SelectItem key={admin} value={admin}>{admin}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Assign a hardware administrator.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Input placeholder="Description of the server" {...field} />
+              </FormControl>
+              <FormDescription>
+                Describe the server's purpose.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="domain"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Domain</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Domain" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {domains.map((domain) => (
+                    <SelectItem key={domain} value={domain}>{domain}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Specify the domain.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="maintenanceWindow"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Maintenance Window</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Maintenance Window" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {maintenanceWindows.map((window) => (
+                    <SelectItem key={window} value={window}>{window}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Choose the maintenance window.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="ipAddress"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>IP Address</FormLabel>
+              <FormControl>
+                <Input placeholder="192.168.1.1" {...field} />
+              </FormControl>
+              <FormDescription>
+                Enter the IP address.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="applicationZone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Application Zone</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Application Zone" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {appZones.map((zone) => (
+                    <SelectItem key={zone} value={zone}>{zone}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Specify the application zone.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="operationalZone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Operational Zone</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Operational Zone" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {opZones.map((zone) => (
+                    <SelectItem key={zone} value={zone}>{zone}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Choose the operational zone.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="backup"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Backup</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Backup Status" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Ja">Ja</SelectItem>
+                  <SelectItem value="Nein">Nein</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Indicate if backup is enabled.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="application"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Application</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Application" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {applications.map((application) => (
+                    <SelectItem key={application} value={application}>{application}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Choose the application.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="flex justify-end gap-4">
+          <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+          <Button type="submit">{isNewServer ? 'Create' : 'Update'}</Button>
+        </div>
+      </form>
+    </Form>
   );
 };
 

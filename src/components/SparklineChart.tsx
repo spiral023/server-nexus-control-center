@@ -30,7 +30,7 @@ const SparklineChart = ({
           {showTooltip && (
             <Tooltip
               formatter={(value) => [`${value}%`, label]}
-              labelFormatter={(label) => `${24 - parseInt(label)}h`}
+              labelFormatter={(label) => `${24 - parseInt(String(label))}h`}
             />
           )}
           <Line
