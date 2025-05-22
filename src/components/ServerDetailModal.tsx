@@ -77,8 +77,10 @@ const ServerDetailModal = () => {
   ].filter(info => info.condition !== false);
   
   const handleEdit = () => {
-    openForm('edit');
-    closeModal();
+    closeModal(); // First close the modal
+    setTimeout(() => { // Use setTimeout to ensure modal is closed before opening form
+      openForm('edit'); // Then open the form in edit mode
+    }, 100); // Small delay to avoid UI glitches
   };
   
   const handleDelete = () => {

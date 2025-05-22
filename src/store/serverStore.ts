@@ -1,6 +1,7 @@
+
 import { create } from 'zustand';
 import { Server, ServerFilter, ServerSort, ServerView, ServerHistory } from '../types/server';
-import { generateMockServers, generateServerHistory } from '../lib/mockData';
+import { generateMockServers, generateServerHistory, generateLargeBatchOfServers } from '../lib/mockData';
 
 export interface ServerState {
   servers: Server[];
@@ -51,12 +52,12 @@ export interface ServerState {
 }
 
 const useServerStore = create<ServerState>((set, get) => {
-  // Generate initial mock data
-  const mockServers = generateMockServers(80);
+  // Generate initial mock data with more servers
+  const mockServers = generateLargeBatchOfServers(1580); // 80 + 1500 new servers
   const mockHistory: Record<string, ServerHistory[]> = {};
   
-  // Generate history for each server
-  mockServers.forEach(server => {
+  // Generate history for each server (only for the first 100 to avoid performance issues)
+  mockServers.slice(0, 100).forEach(server => {
     mockHistory[server.id] = generateServerHistory(server, 5); 
   });
   

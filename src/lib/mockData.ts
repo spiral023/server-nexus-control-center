@@ -395,3 +395,17 @@ export function generateMockServers(count: number): Server[] {
   
   return servers;
 }
+
+// Creating a helper function to generate a large batch of servers incrementally
+export function generateLargeBatchOfServers(count: number): Server[] {
+  // Generate servers in chunks to avoid memory issues
+  const chunkSize = 100;
+  let servers: Server[] = [];
+  
+  for (let i = 0; i < count; i += chunkSize) {
+    const batchSize = Math.min(chunkSize, count - i);
+    servers = [...servers, ...generateMockServers(batchSize)];
+  }
+  
+  return servers;
+}
