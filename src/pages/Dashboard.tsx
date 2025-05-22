@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import {
   Card,
@@ -393,16 +394,16 @@ const Dashboard = () => {
     : servers;
 
   const exportData = () => {
+    // Fix accessing column properties
     const visibleColumns = columns
       .filter(column => {
-        const columnId = column.id || (column.accessorKey as string);
+        const columnId = column.id || (column as any).accessorKey as string;
         return columnId && visibility[columnId] !== false;
       })
-      .map(column => column.id || (column.accessorKey as string))
-      .filter(Boolean);
+      .map(column => column.id || (column as any).accessorKey as string)
+      .filter(Boolean) as (keyof Server)[];
 
-    // Safe type casting here since we're filtering out non-string values
-    exportToCSV(servers, visibleColumns as (keyof Server)[]);
+    exportToCSV(servers, visibleColumns);
     
     toast({
       title: "Exporting data...",
@@ -411,16 +412,16 @@ const Dashboard = () => {
   }
 
   const exportExcelData = () => {
+    // Fix accessing column properties
     const visibleColumns = columns
       .filter(column => {
-        const columnId = column.id || (column.accessorKey as string);
+        const columnId = column.id || (column as any).accessorKey as string;
         return columnId && visibility[columnId] !== false;
       })
-      .map(column => column.id || (column.accessorKey as string))
-      .filter(Boolean);
+      .map(column => column.id || (column as any).accessorKey as string)
+      .filter(Boolean) as (keyof Server)[];
 
-    // Safe type casting here
-    exportToExcel(servers, visibleColumns as (keyof Server)[]);
+    exportToExcel(servers, visibleColumns);
     
     toast({
       title: "Exporting data...",
@@ -600,7 +601,7 @@ const Dashboard = () => {
                           );
                         }
                         
-                        const columnId = column.id || (column.accessorKey as string);
+                        const columnId = column.id || ((column as any).accessorKey as string);
                         
                         // For cell rendering, handle specially based on column id
                         if (columnId === "cpuLoadTrend" && server.cpuLoadTrend) {
