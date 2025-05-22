@@ -1,5 +1,11 @@
-
-import { Server, ServerHistory, HardwareType, ServerType, BackupStatus } from '../types/server';
+import { 
+  Server, 
+  HardwareType, 
+  ServerType, 
+  BackupStatus, 
+  ServerHistory 
+} from '../types/server';
+import { v4 as uuidv4 } from 'uuid';
 
 // Sample server types
 const serverTypes = ['Production', 'Test', 'Development', 'Staging', 'QA'];
@@ -30,7 +36,7 @@ const applications = [
 
 // vSphere clusters
 const vsphereClusters = [
-  'Cluster-01-PROD', 'Cluster-02-TEST', 'Cluster-03-DEV', 'Cluster-DR', 'Cluster-DMZ'
+  'Cluster-01-PROD', 'Cluster-02-QA', 'Cluster-03-DEV', 'Cluster-04-TEST'
 ];
 
 // Patch status options with weights
@@ -185,71 +191,6 @@ function generateCpuLoadTrend() {
   return trend;
 }
 
-// When generating mock servers, add the new fields
-export function generateMockServers(count: number): Server[] {
-  return Array.from({ length: count }).map((_, i) => {
-    const serverType = getRandomItem(serverTypes) as ServerType;
-    const hardwareType = getRandomItem(hardwareTypes) as HardwareType;
-    const createdAt = getRandomDate(new Date('2018-01-01'), new Date());
-    const updatedAt = getRandomDate(new Date(createdAt), new Date());
-    const patchStatus = getWeightedRandomItem(patchStatuses);
-    const lastPatchDate = getRandomDate(new Date(createdAt), new Date());
-    const application = getRandomItem(applications);
-    
-    // Generate random resources based on serverType
-    const isProd = serverType === 'Production';
-    const isVM = hardwareType === 'VMware';
-    
-    const cores = isProd 
-      ? Math.floor(Math.random() * 16) + 8 // 8-24 cores for prod
-      : Math.floor(Math.random() * 8) + 2; // 2-10 cores for non-prod
-      
-    const ramGB = isProd
-      ? (Math.floor(Math.random() * 10) + 8) * 8 // 64-144 GB for prod (in 8GB increments)
-      : (Math.floor(Math.random() * 6) + 2) * 4; // 8-28 GB for non-prod (in 4GB increments)
-      
-    const storageGB = isProd
-      ? Math.floor(Math.random() * 1000) + 500 // 500-1500 GB for prod
-      : Math.floor(Math.random() * 500) + 100; // 100-600 GB for non-prod
-    
-    const vsphereCluster = isVM ? getRandomItem(vsphereClusters) : '';
-    
-    return {
-      id: `server-${i + 1}`,
-      serverName: `SRV-${getRandomItem(['APP', 'DB', 'WEB', 'FILE', 'TEST', 'DEV'])}-${String(i + 1).padStart(3, '0')}`,
-      operatingSystem: getRandomItem(operatingSystems),
-      hardwareType,
-      company: getRandomItem(companies),
-      serverType,
-      location: getRandomItem(locations),
-      systemAdmin: getRandomItem(admins),
-      backupAdmin: getRandomItem(admins),
-      hardwareAdmin: getRandomItem(admins),
-      description: getRandomItem(descriptions),
-      domain: getRandomItem(domains),
-      maintenanceWindow: getRandomItem(maintenanceWindows),
-      ipAddress: generateRandomIP(),
-      applicationZone: getRandomItem(appZones),
-      operationalZone: getRandomItem(opZones),
-      backup: getRandomItem(['Ja', 'Nein']) as BackupStatus, // 75% have backup
-      tags: getRandomTags(),
-      createdAt: createdAt.toISOString(),
-      updatedAt: updatedAt.toISOString(),
-      updatedBy: getRandomItem(users),
-      // New fields
-      cores,
-      ramGB,
-      storageGB,
-      vsphereCluster,
-      application,
-      patchStatus,
-      lastPatchDate: lastPatchDate.toISOString(),
-      cpuLoadTrend: generateCpuLoadTrend(),
-      alarmCount: Math.floor(Math.random() * 5) // 0-4 alarms
-    };
-  });
-}
-
 // Helper function for weighted random selection
 function getWeightedRandomItem<T extends { status: string, weight: number }>(items: T[]): string {
   const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
@@ -333,4 +274,124 @@ export function generateServerHistory(server: Server, count: number): ServerHist
   
   // Sort by timestamp, newest first
   return history.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+// Helper function to generate a random server name
+function generateServerName(): string {
+  const serverType = getRandomItem(serverTypes) as ServerType;
+  const hardwareType = getRandomItem(hardwareTypes) as HardwareType;
+  const app = getRandomItem(['APP', 'DB', 'WEB', 'FILE', 'TEST', 'DEV']);
+  return `SRV-${app}-${String(Math.floor(Math.random() * 100)).padStart(3, '0')}`;
+}
+
+// Helper function to generate a random person name
+function generatePersonName(): string {
+  const firstNames = ['Max', 'Anna', 'Thomas', 'Maria', 'Michael', 'Laura', 'Stefan', 'Julia', 'Andreas', 'Sarah'];
+  const lastNames = ['Mustermann', 'Schmidt', 'Huber', 'Müller', 'Weber', 'Schneider', 'Fischer', 'Wagner', 'Becker', 'Hoffmann'];
+  return `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+}
+
+// Helper function to generate a random description
+function generateDescription(): string {
+  return getRandomItem(descriptions);
+}
+
+// Helper function to generate a random maintenance window
+function generateMaintenanceWindow(): string {
+  return getRandomItem(maintenanceWindows);
+}
+
+// Helper function to generate a random IP address
+function generateIPAddress(): string {
+  return generateRandomIP();
+}
+
+// Helper function to generate a random string of a given length
+function generateRandomString(length: number): string {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  const charactersLength = characters.length;
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+}
+
+// Helper function to generate a random tag
+function generateTag(): string {
+  return getRandomItem(tags);
+}
+
+// Helper function to generate a random date between two dates
+function generateRandomDate(start: Date, end: Date): Date {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+
+// When generating mock servers, add the new fields
+export function generateMockServers(count: number): Server[] {
+  const servers: Server[] = [];
+  const companies = ['RAITEC', 'RLB', 'RSG', 'PFH', 'Hosting'];
+  const locations = ['Linz 1', 'Linz 2', 'Graz', 'Salzburg', 'Innsbruck'];
+  const operatingSystems = [
+    'Windows Server 2022',
+    'Windows Server 2019',
+    'Windows Server 2016',
+    'Ubuntu 22.04 LTS',
+    'Ubuntu 20.04 LTS',
+    'Red Hat Enterprise Linux 9',
+    'Red Hat Enterprise Linux 8',
+    'CentOS 7',
+    'Debian 11',
+    'Debian 10'
+  ];
+  const serverTypes: ServerType[] = ['Production', 'Test', 'Development', 'Staging', 'QA'];
+  const hardwareTypes: HardwareType[] = ['VMware', 'Bare-Metal'];
+  const vsphereCluster = ['Cluster-01-PROD', 'Cluster-02-QA', 'Cluster-03-DEV', 'Cluster-04-TEST'];
+  const applications = [
+    'ERP System', 'CRM Platform', 'Webserver', 'Datenbank', 'Mail Server',
+    'Fileserver', 'Backup System', 'Monitoring', 'Active Directory',
+    'CI/CD Pipeline', 'Kubernetes Cluster', 'Data Warehouse'
+  ];
+  const patchStatuses: ('aktuell' | 'veraltet' | 'kritisch')[] = ['aktuell', 'veraltet', 'kritisch'];
+  
+  for (let i = 0; i < count; i++) {
+    const cores = Math.floor(Math.random() * 8) + 2; // 2-10 cores
+    const ram = (Math.floor(Math.random() * 6) + 2) * 4; // 8-32 GB in increments of 4
+    const storage = Math.floor(Math.random() * 500) + 100; // 100-600 GB
+
+    servers.push({
+      id: uuidv4(),
+      serverName: generateServerName(),
+      operatingSystem: operatingSystems[Math.floor(Math.random() * operatingSystems.length)],
+      hardwareType: hardwareTypes[Math.floor(Math.random() * hardwareTypes.length)],
+      company: companies[Math.floor(Math.random() * companies.length)],
+      serverType: serverTypes[Math.floor(Math.random() * serverTypes.length)],
+      location: locations[Math.floor(Math.random() * locations.length)],
+      systemAdmin: generatePersonName(),
+      backupAdmin: generatePersonName(),
+      hardwareAdmin: generatePersonName(),
+      description: generateDescription(),
+      domain: `${generateRandomString(8)}.example.com`,
+      maintenanceWindow: generateMaintenanceWindow(),
+      ipAddress: generateIPAddress(),
+      applicationZone: generateRandomString(5),
+      operationalZone: generateRandomString(5),
+      backup: Math.random() > 0.3 ? 'Ja' : 'Nein' as BackupStatus,
+      tags: Array(Math.floor(Math.random() * 3)).fill(0).map(_ => generateTag()),
+      createdAt: generateRandomDate(new Date(2020, 0, 1), new Date()).toISOString(),
+      updatedAt: new Date().toISOString(),
+      updatedBy: generatePersonName(),
+      cores: cores,
+      ramGB: ram,
+      storageGB: storage,
+      vsphereCluster: hardwareTypes[0] === 'VMware' ? vsphereCluster[Math.floor(Math.random() * vsphereCluster.length)] : '',
+      application: applications[Math.floor(Math.random() * applications.length)],
+      patchStatus: patchStatuses[Math.floor(Math.random() * patchStatuses.length)],
+      lastPatchDate: generateRandomDate(new Date(2023, 0, 1), new Date()).toISOString(),
+      cpuLoadTrend: Array(24).fill(0).map(() => Math.floor(Math.random() * 30) + 5),
+      alarmCount: Math.floor(Math.random() * 5)
+    });
+  }
+  
+  return servers;
 }

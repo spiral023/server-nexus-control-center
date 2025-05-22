@@ -93,6 +93,7 @@ import { exportToCSV, exportToExcel } from "@/lib/utils"
 import { SparklineChart } from "@/components/SparklineChart"
 import ServerStats from "@/components/ServerStats"
 import ServerForm from "@/components/ServerForm"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Define a schema for the server form
 const formSchema = z.object({
@@ -154,7 +155,7 @@ const Dashboard = () => {
   const indexOfFirstServer = indexOfLastServer - serversPerPage;
   const currentServers = servers.slice(indexOfFirstServer, indexOfLastServer);
 
-  // Change page
+  // Fix the pagination component usage
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   const totalPages = Math.ceil(servers.length / serversPerPage);
@@ -456,20 +457,31 @@ const Dashboard = () => {
     );
   };
 
+  // Define handlers for ServerForm
+  const handleFormSubmit = (values: Server) => {
+    // Add the server to the list
+    setServers([...servers, values]);
+    onClose();
+  };
+
+  const handleFormCancel = () => {
+    onClose();
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogTrigger asChild>
-          <Button variant="outline">Add Server</Button>
+          <Button variant="outline">Server hinzufügen</Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add Server</DialogTitle>
+            <DialogTitle>Server hinzufügen</DialogTitle>
             <DialogDescription>
-              Create a new server by filling out the form below.
+              Erstellen Sie einen neuen Server durch Ausfüllen des untenstehenden Formulars.
             </DialogDescription>
           </DialogHeader>
-          <ServerForm initialValues={initialValues} setServers={setServers} servers={servers} onClose={onClose} />
+          <ServerForm onSubmit={handleFormSubmit} onCancel={handleFormCancel} />
         </DialogContent>
       </Dialog>
       <div className="container mx-auto py-10">
@@ -477,8 +489,7 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle>Server Overview</CardTitle>
             <CardDescription>
-              Here is an overview of all your servers. You can filter, sort, and
-              export the data.
+              Hier ist eine Übersicht aller Ihrer Server. Sie können die Daten filtern, sortieren und exportieren.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -621,21 +632,26 @@ const Dashboard = () => {
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationPrevious href="#" onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} />
+                  <PaginationPrevious 
+                    onClick={() => currentPage > 1 && paginate(currentPage - 1)} 
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                  />
                 </PaginationItem>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
                   <PaginationItem key={pageNumber}>
                     <PaginationLink
-                      href="#"
-                      isCurrent={pageNumber === currentPage}
                       onClick={() => paginate(pageNumber)}
+                      isActive={pageNumber === currentPage}
                     >
                       {pageNumber}
                     </PaginationLink>
                   </PaginationItem>
                 ))}
                 <PaginationItem>
-                  <PaginationNext href="#" onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} />
+                  <PaginationNext 
+                    onClick={() => currentPage < totalPages && paginate(currentPage + 1)} 
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                  />
                 </PaginationItem>
               </PaginationContent>
             </Pagination>

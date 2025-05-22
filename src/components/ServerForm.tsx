@@ -33,6 +33,7 @@ import { Server, BackupStatus } from '../types/server';
 
 interface ServerFormProps {
   server?: Server;
+  initialValues?: Partial<Server>;
   onSubmit: (values: Server) => void;
   onCancel: () => void;
 }
@@ -101,7 +102,7 @@ const applications = [
   'CI/CD Pipeline', 'Kubernetes Cluster', 'Data Warehouse'
 ];
 
-const ServerForm: React.FC<ServerFormProps> = ({ server, onSubmit, onCancel }) => {
+const ServerForm: React.FC<ServerFormProps> = ({ server, initialValues, onSubmit, onCancel }) => {
   const [isNewServer, setIsNewServer] = useState(!server);
 
   useEffect(() => {
@@ -109,7 +110,7 @@ const ServerForm: React.FC<ServerFormProps> = ({ server, onSubmit, onCancel }) =
   }, [server]);
 
   const form = useForm<Server>({
-    defaultValues: server || {
+    defaultValues: server || initialValues || {
       id: '',
       serverName: '',
       operatingSystem: '',
@@ -126,7 +127,7 @@ const ServerForm: React.FC<ServerFormProps> = ({ server, onSubmit, onCancel }) =
       ipAddress: '',
       applicationZone: '',
       operationalZone: '',
-      backup: 'Nein',
+      backup: 'Ja',
       tags: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -142,7 +143,7 @@ const ServerForm: React.FC<ServerFormProps> = ({ server, onSubmit, onCancel }) =
       alarmCount: 0
     },
     mode: "onChange"
-  })
+  });
 
   const onSubmitForm = (values: Server) => {
     if (isNewServer) {

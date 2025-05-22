@@ -1,4 +1,3 @@
-
 import ServerTable from "@/components/ServerTable";
 import ServerPagination from "@/components/ServerPagination";
 import ServerForm from "@/components/ServerForm";
@@ -6,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import useServerStore from "@/store/serverStore";
 import { ServerFilter } from "@/types/server";
+import { useDisclosure } from "@/components/ui/use-disclosure";
 
 // Predefined views for different user types
 const predefinedViews = [
@@ -57,8 +57,9 @@ const predefinedViews = [
 ];
 
 const Index = () => {
-  const { setVisibleColumns } = useServerStore();
+  const { setVisibleColumns, addServer } = useServerStore();
   const [activeView, setActiveView] = useState<string | null>(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   // Apply predefined view when selected
   const applyPredefinedView = (viewId: string) => {
@@ -67,6 +68,15 @@ const Index = () => {
       setVisibleColumns(view.columns as any);
       setActiveView(viewId);
     }
+  };
+
+  const handleSubmit = (values: any) => {
+    addServer(values);
+    onClose();
+  };
+
+  const handleCancel = () => {
+    onClose();
   };
 
   return (
@@ -94,7 +104,8 @@ const Index = () => {
       
       <ServerTable />
       <ServerPagination />
-      <ServerForm />
+      {isOpen && <ServerForm onSubmit={handleSubmit} onCancel={handleCancel} />}
+      <Button onClick={onOpen}>Neuen Server hinzufügen</Button>
     </div>
   );
 };
