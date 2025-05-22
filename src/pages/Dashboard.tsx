@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardHeader,
@@ -396,13 +395,15 @@ const Dashboard = () => {
   const exportData = () => {
     const visibleColumns = columns
       .filter(column => {
-        const accessKey = column.id || (column.accessorKey as string);
-        return accessKey && visibility[accessKey] !== false;
+        const columnId = column.id || (column.accessorKey as string);
+        return columnId && visibility[columnId] !== false;
       })
-      .map(column => (column.accessorKey as string))
+      .map(column => column.id || (column.accessorKey as string))
       .filter(Boolean);
 
-    exportToCSV(servers, visibleColumns as keyof Server[]);
+    // Safe type casting here since we're filtering out non-string values
+    exportToCSV(servers, visibleColumns as (keyof Server)[]);
+    
     toast({
       title: "Exporting data...",
       description: "Your CSV file will be downloaded shortly.",
@@ -412,13 +413,15 @@ const Dashboard = () => {
   const exportExcelData = () => {
     const visibleColumns = columns
       .filter(column => {
-        const accessKey = column.id || (column.accessorKey as string);
-        return accessKey && visibility[accessKey] !== false;
+        const columnId = column.id || (column.accessorKey as string);
+        return columnId && visibility[columnId] !== false;
       })
-      .map(column => (column.accessorKey as string))
+      .map(column => column.id || (column.accessorKey as string))
       .filter(Boolean);
 
-    exportToExcel(servers, visibleColumns as keyof Server[]);
+    // Safe type casting here
+    exportToExcel(servers, visibleColumns as (keyof Server)[]);
+    
     toast({
       title: "Exporting data...",
       description: "Your Excel file will be downloaded shortly.",
@@ -585,32 +588,81 @@ const Dashboard = () => {
                           return (
                             <TableCell key={column.id}>
                               <Checkbox 
-                                checked={table.getRowModel().rows.find(r => r.id === server.id)?.getIsSelected()}
+                                checked={rowSelection[server.id]}
                                 onCheckedChange={(checked) => {
-                                  const row = table.getRowModel().rows.find(r => r.id === server.id);
-                                  if (row) row.toggleSelected(!!checked);
+                                  setRowSelection(prev => ({
+                                    ...prev,
+                                    [server.id]: checked
+                                  }));
                                 }}
                               />
                             </TableCell>
                           );
                         }
                         
-                        // For other columns, render based on the column definition
-                        const cellContent = column.cell ? 
-                          column.cell({ 
-                            row: { 
-                              getValue: (key: string) => server[key as keyof Server],
-                              getValue: (key: string) => server[key as keyof Server],
-                              original: server 
-                            } 
-                          }) : 
-                          server[column.accessorKey as keyof Server];
-                          
-                        return (
-                          <TableCell key={column.id || column.accessorKey as string}>
-                            {cellContent}
-                          </TableCell>
-                        );
+                        const columnId = column.id || (column.accessorKey as string);
+                        
+                        // For cell rendering, handle specially based on column id
+                        if (columnId === "cpuLoadTrend" && server.cpuLoadTrend) {
+                          return (
+                            <TableCell key={columnId}>
+                              <SparklineChart data={server.cpuLoadTrend} />
+                            </TableCell>
+                          );
+                        } else if (columnId === "tags" && server.tags) {
+                          return (
+                            <TableCell key={columnId}>
+                              <div className="flex flex-wrap gap-1">
+                                {server.tags.map((tag, i) => (
+                                  <Badge key={i} variant="secondary">{tag}</Badge>
+                                ))}
+                              </div>
+                            </TableCell>
+                          );
+                        } else if (columnId === "serverType") {
+                          return (
+                            <TableCell key={columnId}>
+                              <Badge>{server.serverType}</Badge>
+                            </TableCell>
+                          );
+                        } else if (columnId === "actions") {
+                          return (
+                            <TableCell key={columnId}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => navigator.clipboard.writeText(server.id)}>
+                                    Copy server ID
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem>View server</DropdownMenuItem>
+                                  <DropdownMenuItem>Edit server</DropdownMenuItem>
+                                  <DropdownMenuItem>Delete server</DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          );
+                        } else if (columnId === "createdAt" || columnId === "updatedAt" || columnId === "lastPatchDate") {
+                          // Format dates
+                          return (
+                            <TableCell key={columnId}>
+                              {formatDate(server[columnId as keyof Server] as string, true)}
+                            </TableCell>
+                          );
+                        } else {
+                          // Default rendering for other columns
+                          return (
+                            <TableCell key={columnId}>
+                              {String(server[columnId as keyof Server] ?? '')}
+                            </TableCell>
+                          );
+                        }
                       })}
                     </TableRow>
                   ))}
@@ -621,14 +673,22 @@ const Dashboard = () => {
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious 
-                    onClick={() => currentPage > 1 && paginate(currentPage - 1)} 
+                    href="#" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) paginate(currentPage - 1);
+                    }}
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
                   <PaginationItem key={pageNumber}>
                     <PaginationLink
-                      onClick={() => paginate(pageNumber)}
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        paginate(pageNumber);
+                      }}
                       isActive={pageNumber === currentPage}
                     >
                       {pageNumber}
@@ -637,7 +697,11 @@ const Dashboard = () => {
                 ))}
                 <PaginationItem>
                   <PaginationNext 
-                    onClick={() => currentPage < totalPages && paginate(currentPage + 1)} 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) paginate(currentPage + 1);
+                    }}
                     className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
