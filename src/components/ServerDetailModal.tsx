@@ -8,7 +8,7 @@ import useServerStore from "@/store/serverStore";
 import { Edit, Trash2, History } from "lucide-react";
 import ServerHistoryTable from "./ServerHistoryTable";
 import { useState } from "react";
-import ServerForm from "./ServerForm";
+import SparklineChart from "./SparklineChart";
 
 const ServerDetailModal = () => {
   const { 
@@ -29,28 +29,52 @@ const ServerDetailModal = () => {
   
   const serverHistoryEntries = serverHistory[selectedServer.id] || [];
   
+  // Get color based on patch status
+  const getPatchStatusColor = (status: string) => {
+    switch(status) {
+      case 'aktuell': return "text-green-500";
+      case 'veraltet': return "text-amber-500";
+      case 'kritisch': return "text-destructive";
+      default: return "text-muted-foreground";
+    }
+  };
+  
   // Format server info for display
   const serverInfo = [
     { label: "Server Name", value: selectedServer.serverName },
-    { label: "Operating System", value: selectedServer.operatingSystem },
-    { label: "Hardware Type", value: <Badge variant="outline" className={getHardwareTypeColor(selectedServer.hardwareType)}>{selectedServer.hardwareType}</Badge> },
-    { label: "Company", value: selectedServer.company },
-    { label: "Server Type", value: <Badge className={getServerTypeColor(selectedServer.serverType)}>{selectedServer.serverType}</Badge> },
-    { label: "Location", value: selectedServer.location },
-    { label: "System Administrator", value: selectedServer.systemAdmin },
+    { label: "Betriebssystem", value: selectedServer.operatingSystem },
+    { label: "Hardware Typ", value: <Badge variant="outline" className={getHardwareTypeColor(selectedServer.hardwareType)}>{selectedServer.hardwareType}</Badge> },
+    { label: "Unternehmen", value: selectedServer.company },
+    { label: "Server Typ", value: <Badge className={getServerTypeColor(selectedServer.serverType)}>{selectedServer.serverType}</Badge> },
+    { label: "Standort", value: selectedServer.location },
+    { label: "Systemadministrator", value: selectedServer.systemAdmin },
     { label: "Backup Administrator", value: selectedServer.backupAdmin },
     { label: "Hardware Administrator", value: selectedServer.hardwareAdmin },
-    { label: "Description", value: selectedServer.description },
-    { label: "Domain", value: selectedServer.domain },
-    { label: "Maintenance Window", value: selectedServer.maintenanceWindow },
-    { label: "IP Address", value: selectedServer.ipAddress },
-    { label: "Application Zone", value: selectedServer.applicationZone },
-    { label: "Operational Zone", value: selectedServer.operationalZone },
+    { label: "Beschreibung", value: selectedServer.description },
+    { label: "Domäne", value: selectedServer.domain },
+    { label: "Wartungsfenster", value: selectedServer.maintenanceWindow || "Nicht definiert" },
+    { label: "IP-Adresse", value: selectedServer.ipAddress },
+    { label: "Anwendungszone", value: selectedServer.applicationZone },
+    { label: "Betriebszone", value: selectedServer.operationalZone },
     { label: "Backup", value: selectedServer.backup },
-    { label: "Created At", value: formatDate(selectedServer.createdAt, true) },
-    { label: "Updated At", value: formatDate(selectedServer.updatedAt, true) },
-    { label: "Updated By", value: selectedServer.updatedBy },
-  ];
+    { label: "CPU Cores", value: selectedServer.cores },
+    { label: "RAM (GB)", value: selectedServer.ramGB },
+    { label: "Storage (GB)", value: selectedServer.storageGB },
+    { 
+      label: "vSphere Cluster", 
+      value: selectedServer.vsphereCluster || "Nicht zutreffend",
+      condition: selectedServer.hardwareType === "VMware"
+    },
+    { label: "Anwendung", value: selectedServer.application },
+    { 
+      label: "Patch Status", 
+      value: <span className={getPatchStatusColor(selectedServer.patchStatus)}>{selectedServer.patchStatus}</span> 
+    },
+    { label: "Letztes Patch Datum", value: formatDate(selectedServer.lastPatchDate) },
+    { label: "Erstellt am", value: formatDate(selectedServer.createdAt, true) },
+    { label: "Aktualisiert am", value: formatDate(selectedServer.updatedAt, true) },
+    { label: "Aktualisiert von", value: selectedServer.updatedBy },
+  ].filter(info => info.condition !== false);
   
   const handleEdit = () => {
     openForm('edit');
@@ -75,13 +99,13 @@ const ServerDetailModal = () => {
         setConfirmDelete(false);
       }
     }}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center justify-between">
             <span>{selectedServer.serverName}</span>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={handleEdit}>
-                <Edit className="h-4 w-4 mr-1" /> Edit
+                <Edit className="h-4 w-4 mr-1" /> Bearbeiten
               </Button>
               <Button 
                 size="sm" 
@@ -89,7 +113,7 @@ const ServerDetailModal = () => {
                 onClick={handleDelete}
               >
                 <Trash2 className="h-4 w-4 mr-1" /> 
-                {confirmDelete ? "Confirm" : "Delete"}
+                {confirmDelete ? "Bestätigen" : "Löschen"}
               </Button>
             </div>
           </DialogTitle>
@@ -99,12 +123,31 @@ const ServerDetailModal = () => {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="details">Server Details</TabsTrigger>
             <TabsTrigger value="history" className="flex items-center">
-              <History className="h-4 w-4 mr-1" /> History ({serverHistoryEntries.length})
+              <History className="h-4 w-4 mr-1" /> Verlauf ({serverHistoryEntries.length})
             </TabsTrigger>
           </TabsList>
           
           <TabsContent value="details" className="space-y-4 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* CPU Load Trend */}
+            <div className="space-y-1 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium text-muted-foreground">CPU Auslastung (24h)</div>
+                <div className="text-sm font-medium">
+                  Aktuell: {selectedServer.cpuLoadTrend?.[selectedServer.cpuLoadTrend.length - 1] || 0}%
+                </div>
+              </div>
+              <SparklineChart 
+                data={selectedServer.cpuLoadTrend || []} 
+                height={60}
+                color={
+                  selectedServer.cpuLoadTrend?.[selectedServer.cpuLoadTrend.length - 1] > 80 ? '#ef4444' :
+                  selectedServer.cpuLoadTrend?.[selectedServer.cpuLoadTrend.length - 1] > 60 ? '#f59e0b' :
+                  '#10b981'
+                }
+              />
+            </div>
+          
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {serverInfo.map((info, index) => (
                 <div key={index} className="space-y-1">
                   <div className="text-sm font-medium text-muted-foreground">{info.label}</div>
@@ -133,7 +176,7 @@ const ServerDetailModal = () => {
         </Tabs>
         
         <DialogFooter className="mt-6">
-          <Button variant="secondary" onClick={closeModal}>Close</Button>
+          <Button variant="secondary" onClick={closeModal}>Schließen</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

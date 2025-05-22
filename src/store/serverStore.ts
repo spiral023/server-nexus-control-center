@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { Server, ServerFilter, ServerSort, ServerView, ServerHistory } from '../types/server';
 import { generateMockServers, generateServerHistory } from '../lib/mockData';
@@ -105,7 +104,40 @@ const useServerStore = create<ServerState>((set, get) => {
     // Add a new server
     addServer: (server) => {
       set((state) => {
-        const updatedServers = [...state.servers, server];
+        // Ensure server has all required fields and default values for new fields
+        const newServer: Server = {
+          ...server,
+          // If these fields are not provided, set default values
+          cores: server.cores || 1,
+          ramGB: server.ramGB || 4,
+          storageGB: server.storageGB || 100,
+          vsphereCluster: server.vsphereCluster || '',
+          application: server.application || '',
+          patchStatus: server.patchStatus || 'aktuell',
+          lastPatchDate: server.lastPatchDate || new Date().toISOString(),
+          cpuLoadTrend: server.cpuLoadTrend || Array(24).fill(0),
+          alarmCount: server.alarmCount || 0,
+          // Ensure these fields always exist
+          serverName: server.serverName,
+          operatingSystem: server.operatingSystem,
+          hardwareType: server.hardwareType,
+          company: server.company,
+          serverType: server.serverType,
+          location: server.location,
+          systemAdmin: server.systemAdmin,
+          backupAdmin: server.backupAdmin,
+          hardwareAdmin: server.hardwareAdmin,
+          description: server.description,
+          domain: server.domain,
+          maintenanceWindow: server.maintenanceWindow,
+          ipAddress: server.ipAddress,
+          applicationZone: server.applicationZone,
+          operationalZone: server.operationalZone,
+          backup: server.backup,
+          tags: server.tags || [],
+        };
+        
+        const updatedServers = [...state.servers, newServer];
         const updatedFilteredServers = applyFiltersAndSearch(
           updatedServers, 
           state.filters, 
@@ -126,7 +158,7 @@ const useServerStore = create<ServerState>((set, get) => {
         // Update the server in the array
         const updatedServers = state.servers.map(server => 
           server.id === serverId 
-            ? { ...server, ...updates, updatedAt: new Date().toISOString(), updatedBy: 'Current User' } 
+            ? { ...server, ...updates, updatedAt: new Date().toISOString(), updatedBy: 'Aktueller Benutzer' } 
             : server
         );
         
@@ -154,7 +186,7 @@ const useServerStore = create<ServerState>((set, get) => {
                 oldValue: String(oldServer[fieldKey] || ''),
                 newValue: String(updates[fieldKey] || ''),
                 timestamp: new Date().toISOString(),
-                user: 'Current User'
+                user: 'Aktueller Benutzer'
               });
             }
           });

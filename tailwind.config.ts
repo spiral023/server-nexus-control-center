@@ -58,6 +58,10 @@ export default {
 				'status-test': '#3b82f6',  // Blue for test
 				'status-dev': '#f59e0b',   // Amber for development
 				'tag': '#6366f1',          // Indigo for tags
+				// New colors for patch status
+				'patch-aktuell': '#10b981', // Green for current patches
+				'patch-veraltet': '#f59e0b', // Amber for outdated patches
+				'patch-kritisch': '#ef4444', // Red for critical patches
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
