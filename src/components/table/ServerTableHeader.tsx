@@ -1,15 +1,14 @@
 
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Server } from "@/types/server";
+import { Server, ServerSort } from "@/types/server";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { Sort } from "@/types/server";
 
 interface ServerTableHeaderProps {
   visibleColumns: (keyof Server)[];
   allSelected: boolean;
   selectAllServers: () => void;
-  sorting: Sort[];
+  sorting: ServerSort[];
   handleSort: (column: keyof Server) => void;
 }
 

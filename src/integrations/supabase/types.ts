@@ -9,7 +9,143 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      server_history: {
+        Row: {
+          field: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          server_id: string
+          timestamp: string
+          user_text: string
+        }
+        Insert: {
+          field: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          server_id: string
+          timestamp?: string
+          user_text: string
+        }
+        Update: {
+          field?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          server_id?: string
+          timestamp?: string
+          user_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "server_history_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      servers: {
+        Row: {
+          alarm_count: number
+          application: string
+          application_zone: string
+          backup: string
+          backup_admin: string
+          company: string
+          cores: number
+          cpu_load_trend: Json
+          created_at: string
+          description: string
+          domain: string
+          hardware_admin: string
+          hardware_type: string
+          id: string
+          ip_address: string
+          last_patch_date: string
+          location: string
+          maintenance_window: string
+          operating_system: string
+          operational_zone: string
+          patch_status: string
+          ram_gb: number
+          server_name: string
+          server_type: string
+          storage_gb: number
+          system_admin: string
+          tags: string[]
+          updated_at: string
+          updated_by: string
+          vsphere_cluster: string
+        }
+        Insert: {
+          alarm_count?: number
+          application?: string
+          application_zone: string
+          backup: string
+          backup_admin: string
+          company: string
+          cores?: number
+          cpu_load_trend?: Json
+          created_at?: string
+          description: string
+          domain: string
+          hardware_admin: string
+          hardware_type: string
+          id?: string
+          ip_address: string
+          last_patch_date?: string
+          location: string
+          maintenance_window: string
+          operating_system: string
+          operational_zone: string
+          patch_status: string
+          ram_gb?: number
+          server_name: string
+          server_type: string
+          storage_gb?: number
+          system_admin: string
+          tags?: string[]
+          updated_at?: string
+          updated_by?: string
+          vsphere_cluster?: string
+        }
+        Update: {
+          alarm_count?: number
+          application?: string
+          application_zone?: string
+          backup?: string
+          backup_admin?: string
+          company?: string
+          cores?: number
+          cpu_load_trend?: Json
+          created_at?: string
+          description?: string
+          domain?: string
+          hardware_admin?: string
+          hardware_type?: string
+          id?: string
+          ip_address?: string
+          last_patch_date?: string
+          location?: string
+          maintenance_window?: string
+          operating_system?: string
+          operational_zone?: string
+          patch_status?: string
+          ram_gb?: number
+          server_name?: string
+          server_type?: string
+          storage_gb?: number
+          system_admin?: string
+          tags?: string[]
+          updated_at?: string
+          updated_by?: string
+          vsphere_cluster?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
