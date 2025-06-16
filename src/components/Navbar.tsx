@@ -2,12 +2,19 @@
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Database, BarChart2, HelpCircle } from "lucide-react";
+import { Database, BarChart2, HelpCircle, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
+  const { signOut, user } = useAuth();
+  
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
   
   return (
     <header className="border-b sticky top-0 bg-background z-10">
@@ -46,28 +53,46 @@ const Navbar = () => {
           </TabsList>
         </Tabs>
         
-        <div className="flex md:hidden">
-          <Button
-            variant={currentPath === "/" ? "default" : "ghost"}
-            size="icon"
-            onClick={() => navigate("/")}
-          >
-            <Database className="h-5 w-5" />
-          </Button>
-          <Button
-            variant={currentPath === "/dashboard" ? "default" : "ghost"}
-            size="icon"
-            onClick={() => navigate("/dashboard")}
-          >
-            <BarChart2 className="h-5 w-5" />
-          </Button>
-          <Button
-            variant={currentPath === "/help" ? "default" : "ghost"}
-            size="icon"
-            onClick={() => navigate("/help")}
-          >
-            <HelpCircle className="h-5 w-5" />
-          </Button>
+        <div className="flex items-center gap-2">
+          {user && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground hidden md:block">
+                {user.email}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                title="Sign out"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
+          )}
+          
+          <div className="flex md:hidden">
+            <Button
+              variant={currentPath === "/" ? "default" : "ghost"}
+              size="icon"
+              onClick={() => navigate("/")}
+            >
+              <Database className="h-5 w-5" />
+            </Button>
+            <Button
+              variant={currentPath === "/dashboard" ? "default" : "ghost"}
+              size="icon"
+              onClick={() => navigate("/dashboard")}
+            >
+              <BarChart2 className="h-5 w-5" />
+            </Button>
+            <Button
+              variant={currentPath === "/help" ? "default" : "ghost"}
+              size="icon"
+              onClick={() => navigate("/help")}
+            >
+              <HelpCircle className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </div>
     </header>
