@@ -1,3 +1,5 @@
+
+import { useEffect } from "react";
 import ServerTable from "@/components/ServerTable";
 import ServerPagination from "@/components/ServerPagination";
 import ServerForm from "@/components/ServerForm";
@@ -57,9 +59,14 @@ const predefinedViews = [
 ];
 
 const Index = () => {
-  const { setVisibleColumns, addServer } = useServerStore();
+  const { setVisibleColumns, addServer, loadServers, isLoading } = useServerStore();
   const [activeView, setActiveView] = useState<string | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
+
+  // Load servers from Supabase on component mount
+  useEffect(() => {
+    loadServers();
+  }, [loadServers]);
 
   // Apply predefined view when selected
   const applyPredefinedView = (viewId: string) => {
@@ -70,14 +77,24 @@ const Index = () => {
     }
   };
 
-  const handleSubmit = (values: any) => {
-    addServer(values);
+  const handleSubmit = async (values: any) => {
+    await addServer(values);
     onClose();
   };
 
   const handleCancel = () => {
     onClose();
   };
+
+  if (isLoading) {
+    return (
+      <div className="container py-6 space-y-6">
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="text-lg">Loading servers...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-6 space-y-6">

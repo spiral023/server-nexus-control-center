@@ -2,7 +2,6 @@
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import useServerStore from "@/store/serverStore";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -10,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import ServerSyncControls from "@/components/ServerSyncControls"; // Import the new component
 
 const ServerTableActions = () => {
   const {
@@ -66,9 +64,6 @@ const ServerTableActions = () => {
           </SelectContent>
         </Select>
       </div>
-      
-      {/* Add ServerSyncControls component */}
-      <ServerSyncControls />
     </div>
   );
 };

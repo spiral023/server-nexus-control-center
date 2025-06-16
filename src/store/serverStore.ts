@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { Server, ServerFilter, ServerSort, ServerView, ServerHistory } from '../types/server';
-import { generateMockServers, generateServerHistory, generateLargeBatchOfServers } from '../lib/mockData';
+import * as serverService from '../services/serverService';
 
 export interface ServerState {
   servers: Server[];
@@ -21,14 +21,16 @@ export interface ServerState {
   isModalOpen: boolean;
   isFormOpen: boolean;
   formMode: 'create' | 'edit';
+  isLoading: boolean;
   
   // Actions
+  loadServers: () => Promise<void>;
   setServers: (servers: Server[]) => void;
   setSelectedServer: (server: Server | null) => void;
-  addServer: (server: Server) => void;
-  updateServer: (serverId: string, updates: Partial<Server>) => void;
-  deleteServer: (serverId: string) => void;
-  deleteMultipleServers: (serverIds: string[]) => void;
+  addServer: (server: Omit<Server, 'id'>) => Promise<void>;
+  updateServer: (serverId: string, updates: Partial<Server>) => Promise<void>;
+  deleteServer: (serverId: string) => Promise<void>;
+  deleteMultipleServers: (serverIds: string[]) => Promise<void>;
   addFilter: (filter: ServerFilter) => void;
   removeFilter: (index: number) => void;
   resetFilters: () => void;
@@ -52,38 +54,48 @@ export interface ServerState {
 }
 
 const useServerStore = create<ServerState>((set, get) => {
-  // Generate initial mock data with more servers
-  const mockServers = generateLargeBatchOfServers(1580); // 80 + 1500 new servers
-  const mockHistory: Record<string, ServerHistory[]> = {};
-  
-  // Generate history for each server (only for the first 100 to avoid performance issues)
-  mockServers.slice(0, 100).forEach(server => {
-    mockHistory[server.id] = generateServerHistory(server, 5); 
-  });
-  
   const defaultVisibleColumns: (keyof Server)[] = [
     'serverName', 'operatingSystem', 'hardwareType', 'company', 
     'serverType', 'location', 'ipAddress', 'backup'
   ];
   
   return {
-    servers: mockServers,
-    filteredServers: mockServers,
+    servers: [],
+    filteredServers: [],
     selectedServer: null,
     filters: [],
     search: '',
     sorting: [{ key: 'serverName', direction: 'asc' }],
     currentPage: 1,
     itemsPerPage: 20,
-    totalPages: Math.ceil(mockServers.length / 20),
+    totalPages: 0,
     visibleColumns: defaultVisibleColumns,
     savedViews: [],
     activeView: null,
-    serverHistory: mockHistory,
+    serverHistory: {},
     selectedServers: [],
     isModalOpen: false,
     isFormOpen: false,
     formMode: 'create',
+    isLoading: false,
+    
+    // Load servers from Supabase
+    loadServers: async () => {
+      set({ isLoading: true });
+      try {
+        const servers = await serverService.fetchServers();
+        const filteredServers = applyFiltersAndSearch(servers, get().filters, get().search);
+        set({
+          servers,
+          filteredServers,
+          totalPages: Math.ceil(filteredServers.length / get().itemsPerPage),
+          isLoading: false
+        });
+      } catch (error) {
+        console.error('Error loading servers:', error);
+        set({ isLoading: false });
+      }
+    },
     
     // Set all servers
     setServers: (servers) => {
@@ -103,41 +115,11 @@ const useServerStore = create<ServerState>((set, get) => {
     },
     
     // Add a new server
-    addServer: (server) => {
-      set((state) => {
-        // Ensure server has all required fields and default values for new fields
-        const newServer: Server = {
-          ...server,
-          // If these fields are not provided, set default values
-          cores: server.cores || 1,
-          ramGB: server.ramGB || 4,
-          storageGB: server.storageGB || 100,
-          vsphereCluster: server.vsphereCluster || '',
-          application: server.application || '',
-          patchStatus: server.patchStatus || 'aktuell',
-          lastPatchDate: server.lastPatchDate || new Date().toISOString(),
-          cpuLoadTrend: server.cpuLoadTrend || Array(24).fill(0),
-          alarmCount: server.alarmCount || 0,
-          // Ensure these fields always exist
-          serverName: server.serverName,
-          operatingSystem: server.operatingSystem,
-          hardwareType: server.hardwareType,
-          company: server.company,
-          serverType: server.serverType,
-          location: server.location,
-          systemAdmin: server.systemAdmin,
-          backupAdmin: server.backupAdmin,
-          hardwareAdmin: server.hardwareAdmin,
-          description: server.description,
-          domain: server.domain,
-          maintenanceWindow: server.maintenanceWindow,
-          ipAddress: server.ipAddress,
-          applicationZone: server.applicationZone,
-          operationalZone: server.operationalZone,
-          backup: server.backup,
-          tags: server.tags || [],
-        };
-        
+    addServer: async (serverData) => {
+      set({ isLoading: true });
+      try {
+        const newServer = await serverService.createServer(serverData);
+        const state = get();
         const updatedServers = [...state.servers, newServer];
         const updatedFilteredServers = applyFiltersAndSearch(
           updatedServers, 
@@ -145,79 +127,52 @@ const useServerStore = create<ServerState>((set, get) => {
           state.search
         );
         
-        return {
+        set({
           servers: updatedServers,
           filteredServers: updatedFilteredServers,
-          totalPages: Math.ceil(updatedFilteredServers.length / state.itemsPerPage)
-        };
-      });
+          totalPages: Math.ceil(updatedFilteredServers.length / state.itemsPerPage),
+          isLoading: false
+        });
+      } catch (error) {
+        console.error('Error adding server:', error);
+        set({ isLoading: false });
+      }
     },
     
     // Update an existing server
-    updateServer: (serverId, updates) => {
-      set((state) => {
-        // Update the server in the array
+    updateServer: async (serverId, updates) => {
+      set({ isLoading: true });
+      try {
+        const updatedServer = await serverService.updateServer(serverId, updates);
+        const state = get();
         const updatedServers = state.servers.map(server => 
-          server.id === serverId 
-            ? { ...server, ...updates, updatedAt: new Date().toISOString(), updatedBy: 'Aktueller Benutzer' } 
-            : server
+          server.id === serverId ? updatedServer : server
         );
         
-        // Apply filters again
         const updatedFilteredServers = applyFiltersAndSearch(
           updatedServers, 
           state.filters, 
           state.search
         );
         
-        // Create history record
-        const oldServer = state.servers.find(s => s.id === serverId);
-        if (oldServer) {
-          const history = state.serverHistory[serverId] || [];
-          const newHistory: ServerHistory[] = [];
-          
-          // Add history entry for each changed field
-          Object.keys(updates).forEach(key => {
-            const fieldKey = key as keyof Server;
-            if (oldServer[fieldKey] !== updates[fieldKey] && fieldKey !== 'updatedAt' && fieldKey !== 'updatedBy') {
-              newHistory.push({
-                id: Math.random().toString(36).substring(2, 11),
-                serverId: serverId,
-                field: fieldKey,
-                oldValue: String(oldServer[fieldKey] || ''),
-                newValue: String(updates[fieldKey] || ''),
-                timestamp: new Date().toISOString(),
-                user: 'Aktueller Benutzer'
-              });
-            }
-          });
-          
-          if (newHistory.length > 0) {
-            const updatedHistory = {
-              ...state.serverHistory,
-              [serverId]: [...history, ...newHistory]
-            };
-            
-            return {
-              servers: updatedServers,
-              filteredServers: updatedFilteredServers,
-              totalPages: Math.ceil(updatedFilteredServers.length / state.itemsPerPage),
-              serverHistory: updatedHistory
-            };
-          }
-        }
-        
-        return {
+        set({
           servers: updatedServers,
           filteredServers: updatedFilteredServers,
-          totalPages: Math.ceil(updatedFilteredServers.length / state.itemsPerPage)
-        };
-      });
+          totalPages: Math.ceil(updatedFilteredServers.length / state.itemsPerPage),
+          isLoading: false
+        });
+      } catch (error) {
+        console.error('Error updating server:', error);
+        set({ isLoading: false });
+      }
     },
     
     // Delete a server
-    deleteServer: (serverId) => {
-      set((state) => {
+    deleteServer: async (serverId) => {
+      set({ isLoading: true });
+      try {
+        await serverService.deleteServer(serverId);
+        const state = get();
         const updatedServers = state.servers.filter(server => server.id !== serverId);
         const updatedFilteredServers = applyFiltersAndSearch(
           updatedServers, 
@@ -228,22 +183,25 @@ const useServerStore = create<ServerState>((set, get) => {
         // Remove server from selections if it's there
         const updatedSelections = state.selectedServers.filter(id => id !== serverId);
         
-        // Remove history for the deleted server
-        const { [serverId]: _, ...updatedHistory } = state.serverHistory;
-        
-        return {
+        set({
           servers: updatedServers,
           filteredServers: updatedFilteredServers,
           selectedServers: updatedSelections,
           totalPages: Math.ceil(updatedFilteredServers.length / state.itemsPerPage),
-          serverHistory: updatedHistory
-        };
-      });
+          isLoading: false
+        });
+      } catch (error) {
+        console.error('Error deleting server:', error);
+        set({ isLoading: false });
+      }
     },
     
     // Delete multiple servers
-    deleteMultipleServers: (serverIds) => {
-      set((state) => {
+    deleteMultipleServers: async (serverIds) => {
+      set({ isLoading: true });
+      try {
+        await Promise.all(serverIds.map(id => serverService.deleteServer(id)));
+        const state = get();
         const updatedServers = state.servers.filter(server => !serverIds.includes(server.id));
         const updatedFilteredServers = applyFiltersAndSearch(
           updatedServers, 
@@ -254,20 +212,17 @@ const useServerStore = create<ServerState>((set, get) => {
         // Remove deleted servers from selections
         const updatedSelections = state.selectedServers.filter(id => !serverIds.includes(id));
         
-        // Remove history for deleted servers
-        const updatedHistory = { ...state.serverHistory };
-        serverIds.forEach(id => {
-          delete updatedHistory[id];
-        });
-        
-        return {
+        set({
           servers: updatedServers,
           filteredServers: updatedFilteredServers,
           selectedServers: updatedSelections,
           totalPages: Math.ceil(updatedFilteredServers.length / state.itemsPerPage),
-          serverHistory: updatedHistory
-        };
-      });
+          isLoading: false
+        });
+      } catch (error) {
+        console.error('Error deleting servers:', error);
+        set({ isLoading: false });
+      }
     },
     
     // Add a filter
@@ -493,57 +448,32 @@ const useServerStore = create<ServerState>((set, get) => {
     },
     
     // Bulk add tag to selected servers
-    bulkTagServers: (tag) => {
-      set((state) => {
-        const { selectedServers, servers } = state;
-        if (selectedServers.length === 0) return state;
-        
-        const updatedServers = servers.map(server => {
-          if (selectedServers.includes(server.id)) {
-            // Don't add duplicate tags
-            if (!server.tags.includes(tag)) {
-              return {
-                ...server,
-                tags: [...server.tags, tag],
-                updatedAt: new Date().toISOString(),
-                updatedBy: 'Current User'
-              };
+    bulkTagServers: async (tag) => {
+      const state = get();
+      const { selectedServers } = state;
+      if (selectedServers.length === 0) return;
+      
+      set({ isLoading: true });
+      try {
+        // Update each selected server with the new tag
+        await Promise.all(
+          selectedServers.map(async (serverId) => {
+            const server = state.servers.find(s => s.id === serverId);
+            if (server && !server.tags.includes(tag)) {
+              await serverService.updateServer(serverId, {
+                tags: [...server.tags, tag]
+              });
             }
-          }
-          return server;
-        });
-        
-        const filteredServers = applyFiltersAndSearch(
-          updatedServers, 
-          state.filters, 
-          state.search
+          })
         );
         
-        // Update history for each modified server
-        const updatedHistory = { ...state.serverHistory };
-        selectedServers.forEach(serverId => {
-          const server = servers.find(s => s.id === serverId);
-          if (server && !server.tags.includes(tag)) {
-            const history = updatedHistory[serverId] || [];
-            const historyEntry: ServerHistory = {
-              id: Math.random().toString(36).substring(2, 11),
-              serverId,
-              field: 'tags',
-              oldValue: server.tags.join(', '),
-              newValue: [...server.tags, tag].join(', '),
-              timestamp: new Date().toISOString(),
-              user: 'Current User'
-            };
-            updatedHistory[serverId] = [...history, historyEntry];
-          }
-        });
-        
-        return {
-          servers: updatedServers,
-          filteredServers,
-          serverHistory: updatedHistory
-        };
-      });
+        // Reload servers to get updated data
+        await get().loadServers();
+      } catch (error) {
+        console.error('Error bulk tagging servers:', error);
+      } finally {
+        set({ isLoading: false });
+      }
     },
     
     // Modal controls
